@@ -1,0 +1,35 @@
+# Timechart of DNS queries
+| tstats summariesonly=true allow_old_summaries=false count as "DNS Queries" from datamodel=Network_Resolution 
+where DNS.dest=$DNS_server$ by _time
+| bin _time span=1m
+
+# Timechart of average DNS response Timechart
+| tstats summariesonly=true allow_old_summaries=false count as total_count sum(DNS.response_time) as sum_response_time from datamodel=Network_Resolution 
+where DNS.dest=$DNS_server$ by _time span=1m
+| eval avg_response_time = sum_response_time/(total_count*1000000)
+| timechart last(avg_response_time) as "Avg. Response Time"
+
+# Timechart of DNS error counts
+| tstats summariesonly=true allow_old_summaries=false count as "Error Count" from datamodel=Network_Resolution 
+where DNS.dest=$DNS_server$ DNS.reply_code_id!=0 DNS.reply_code_id!=unknown by _time span=30m
+
+# Query count, including # of queries with errors
+index=dns query_type{}=A*
+| rename query as Query 
+| eval error=if(reply_code!="NoError", 1, 0) 
+| stats count sum(error) as Errors by Query 
+| sort count desc
+
+# Spread of query types
+| tstats summariesonly=true allow_old_summaries=false count from datamodel=Network_Resolution where DNS.dest=$DNS_server$ by DNS.record_type
+| rename DNS.record_type as "Query Type"
+| sort by count desc
+
+# List of A* queries by Error & Count as root domain
+index=dns 
+| eval url=query, list="mozilla"
+| `ut_parse_extended(url, list)`
+| rename host_addr{} as host_addr
+| stats dc(host_addr) as "IP Counts" by ut_domain 
+| sort - "IP Counts" limit=10
+| rename ut_domain as "Root Domain"
