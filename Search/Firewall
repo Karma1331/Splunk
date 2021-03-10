@@ -1,0 +1,41 @@
+#GEO - Allowed outside -> inside by source ip
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=allowed All_Traffic.direction=inbound All_Traffic.subnet="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.src, All_Traffic.dest
+| rename "All_Traffic.*" as "*" 
+| iplocation src 
+| geostats globallimit=5000 sum(count) by src
+
+#GEO - Allowed inside -> outside by destination ip
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=allowed All_Traffic.subnet!="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.src, All_Traffic.dest
+| rename "All_Traffic.*" as "*" 
+| iplocation dest 
+| geostats sum(count) globallimit=5000 by dest
+
+#GEO - Allowed outside -> inside by destination port
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=allowed All_Traffic.subnet="Outside" All_Traffic.dest_port!=0 All_Traffic.src!=8.8.8.8 by All_Traffic.src, All_Traffic.dest_port
+| rename "All_Traffic.*" as "*" 
+| iplocation src 
+| geostats sum(count) globallimit=1000 by dest_port
+
+#TOP - Alowed outside -> inside by destination port
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=allowed All_Traffic.direction=inbound All_Traffic.subnet="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.dest_port
+| rename "All_Traffic.*" as "*" 
+| sort - count 
+| head
+
+#GEO - Blocked outside -> inside by destination port
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=blocked All_Traffic.subnet="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.src, All_Traffic.dest_port
+| rename "All_Traffic.*" as "*" 
+| iplocation src 
+| geostats sum(count) globallimit=1000 by dest_port
+
+#TOP - Blocked outside -> inside by source ip
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=blocked All_Traffic.subnet="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.src
+| rename "All_Traffic.*" as "*" 
+| sort - count 
+| head
+
+#TOP - Blocked inside -> outside by source ip
+| tstats summariesonly=true allow_old_summaries=true count from datamodel=Network_Traffic.All_Traffic where All_Traffic.action=blocked All_Traffic.subnet!="Outside" All_Traffic.src!=8.8.8.8 by All_Traffic.src
+| rename "All_Traffic.*" as "*" 
+| sort - count 
+| head
