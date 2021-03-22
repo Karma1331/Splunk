@@ -33,3 +33,12 @@ index=dns
 | stats dc(host_addr) as "IP Counts" by ut_domain 
 | sort - "IP Counts" limit=10
 | rename ut_domain as "Root Domain"
+
+# Low -> High DNS Resolution count by root domain
+| tstats count from datamodel=Network_Resolution where DNS.query!=*arpa by DNS.query DNS.src
+| rename "DNS.query" as url
+| eval list="mozilla"
+| `ut_parse_extended(url,list)`
+| stats dc(DNS.src) as "Unique Hits" by ut_domain
+| sort + "Unique Hits"
+| rename ut_domain as "Root Domain"
